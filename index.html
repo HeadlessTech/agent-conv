@@ -328,6 +328,12 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
               // User started speaking (interruption)
               voiceIndicator.classList.add("listening");
               statusText.textContent = "Listening to you...";
+              // Interrupt current playback
+              interruptPlayback();
+              // Cancel current response from OpenAI
+              if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "cancel" }));
+              }
             } else if (data.type === "speech_stopped") {
               voiceIndicator.classList.remove("listening");
               statusText.textContent = "Processing...";
@@ -404,6 +410,7 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
 
       let audioQueue = [];
       let isPlaying = false;
+      let currentAudioSource = null;
 
       async function playAudio(base64Audio) {
         audioQueue.push(base64Audio);
@@ -449,7 +456,9 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
           const source = audioContext.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(audioContext.destination);
+          currentAudioSource = source;
           source.onended = () => {
+            currentAudioSource = null;
             playNextAudio();
           };
           source.start();
@@ -457,6 +466,21 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
           console.error("Error playing audio:", error);
           playNextAudio();
         }
+      }
+
+      function interruptPlayback() {
+        // Stop current audio
+        if (currentAudioSource) {
+          try {
+            currentAudioSource.stop();
+            currentAudioSource = null;
+          } catch (e) {
+            // Audio may already be stopped
+          }
+        }
+        // Clear audio queue
+        audioQueue = [];
+        isPlaying = false;
       }
 
       function stopDemo() {

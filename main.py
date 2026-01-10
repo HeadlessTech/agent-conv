@@ -142,6 +142,11 @@ IMPORTANT:
                             await openai_ws.send(
                                 json.dumps({"type": "response.create"})
                             )
+                        elif message.get("type") == "cancel":
+                            # Cancel current response
+                            await openai_ws.send(
+                                json.dumps({"type": "response.cancel"})
+                            )
                 except WebSocketDisconnect:
                     pass
 
