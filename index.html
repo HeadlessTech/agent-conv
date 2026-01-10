@@ -176,16 +176,7 @@
       }
 
       .error-message {
-        background: #fee;
-        color: #c33;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 20px 0;
         display: none;
-      }
-
-      .error-message.visible {
-        display: block;
       }
 
       .reminder-input {
@@ -231,7 +222,7 @@
           class="reminder-input"
           placeholder="Enter your reminder here..."
         >
-Meeting with Elon Musk about Tesla v4 designs at 3pm today.
+Meeting with Elon Musk about Tesla v4 designs at 3pm tomorrow.
 Meeting with: Elon Musk
 Time: 3pm
 Place: Tesla center, City Square
@@ -305,7 +296,7 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
           // Get reminder text
           const reminderText = reminderInput.value.trim();
           if (!reminderText) {
-            showError("Please enter reminder details before starting.");
+            console.error("Please enter reminder details before starting.");
             stopDemo();
             return;
           }
@@ -343,13 +334,12 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
             } else if (data.type === "response_done") {
               statusText.textContent = "Ready to listen...";
             } else if (data.type === "error") {
-              showError("Error: " + JSON.stringify(data.error));
+              console.error("WebSocket error:", data.error);
             }
           };
 
           ws.onerror = (error) => {
-            showError("Connection error. Please check your setup.");
-            console.error("WebSocket error:", error);
+            console.error("WebSocket connection error:", error);
           };
 
           ws.onclose = () => {
@@ -357,8 +347,7 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
             stopRecording();
           };
         } catch (error) {
-          showError("Failed to access microphone. Please grant permission.");
-          console.error("Error:", error);
+          console.error("Failed to access microphone:", error);
           stopDemo();
         }
       }
@@ -497,12 +486,6 @@ What to bring: Presentation slides, previous design notes, Design book</textarea
         voiceIndicator.classList.remove("listening");
         transcript.textContent = "";
         statusText.textContent = "Connecting...";
-        errorMessage.classList.remove("visible");
-      }
-
-      function showError(message) {
-        errorMessage.textContent = message;
-        errorMessage.classList.add("visible");
       }
     </script>
   </body>

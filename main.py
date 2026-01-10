@@ -73,10 +73,10 @@ When the conversation starts, greet the user briefly and give them a SHORT summa
                             "input_audio_format": "pcm16",
                             "output_audio_format": "pcm16",
                             "turn_detection": {
-                                "type": "server_vad",  # Server-side Voice Activity Detection for interruption
-                                "threshold": 0.5,
+                                "type": "server_vad",
+                                "threshold": 0.3,
                                 "prefix_padding_ms": 300,
-                                "silence_duration_ms": 500,
+                                "silence_duration_ms": 200,
                             },
                         },
                     }
@@ -103,9 +103,6 @@ When the conversation starts, greet the user briefly and give them a SHORT summa
             )
 
             await openai_ws.send(json.dumps({"type": "response.create"}))
-
-            # Track if there's an active response
-            response_in_progress = {"active": False}
 
             # Create tasks for bidirectional communication
             async def forward_client_to_openai():
@@ -141,12 +138,6 @@ When the conversation starts, greet the user briefly and give them a SHORT summa
                         event = json.loads(raw_message)
                         event_type = event.get("type")
 
-                        # Track response state
-                        if event_type in ["response.created", "response.audio.delta"]:
-                            response_in_progress["active"] = True
-                        elif event_type in ["response.done", "response.cancelled"]:
-                            response_in_progress["active"] = False
-
                         # Forward relevant events to client
                         if event_type == "response.audio.delta":
                             await websocket.send_json(
@@ -159,12 +150,7 @@ When the conversation starts, greet the user briefly and give them a SHORT summa
                         elif event_type == "response.done":
                             await websocket.send_json({"type": "response_done"})
                         elif event_type == "input_audio_buffer.speech_started":
-                            # User started speaking - interruption detected
-                            # Only cancel if there's an active response
-                            if response_in_progress["active"]:
-                                await openai_ws.send(
-                                    json.dumps({"type": "response.cancel"})
-                                )
+                            # User started speaking
                             await websocket.send_json({"type": "speech_started"})
                         elif event_type == "input_audio_buffer.speech_stopped":
                             await websocket.send_json({"type": "speech_stopped"})
@@ -172,14 +158,14 @@ When the conversation starts, greet the user briefly and give them a SHORT summa
                             await websocket.send_json(
                                 {"type": "error", "error": event.get("error", {})}
                             )
-                except Exception as e:
-                    print(f"Error in OpenAI to client: {e}")
+                except Exception:
+                    pass
 
             # Run both directions concurrently
             await asyncio.gather(forward_client_to_openai(), forward_openai_to_client())
 
     except WebSocketDisconnect:
-        print("Client disconnected")
+        pass
     except Exception as e:
         print(f"WebSocket error: {e}")
 
