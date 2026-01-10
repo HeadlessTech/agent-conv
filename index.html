@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Voice Reminder Assistant</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        text-align: center;
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 28px;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 40px;
+        font-size: 16px;
+      }
+
+      .start-screen {
+        display: block;
+      }
+
+      .voice-screen {
+        display: none;
+      }
+
+      .start-screen.hidden,
+      .voice-screen.hidden {
+        display: none;
+      }
+
+      .start-screen:not(.hidden) {
+        display: block;
+      }
+
+      .voice-screen:not(.hidden) {
+        display: block;
+      }
+
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 50px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .stop-button {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+      }
+
+      .stop-button:hover {
+        box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+      }
+
+      .voice-indicator {
+        width: 150px;
+        height: 150px;
+        margin: 30px auto;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .voice-indicator.listening {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation: pulse-fast 0.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
+        }
+      }
+
+      @keyframes pulse-fast {
+        0%,
+        100% {
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.7);
+        }
+        50% {
+          transform: scale(1.1);
+          box-shadow: 0 0 0 20px rgba(245, 87, 108, 0);
+        }
+      }
+
+      .voice-indicator svg {
+        width: 60px;
+        height: 60px;
+        fill: white;
+      }
+
+      .status-text {
+        color: #666;
+        margin: 20px 0;
+        font-size: 16px;
+        min-height: 24px;
+      }
+
+      .transcript {
+        background: #f5f5f5;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        min-height: 100px;
+        max-height: 200px;
+        overflow-y: auto;
+        text-align: left;
+        color: #333;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .transcript:empty::before {
+        content: "Transcript will appear here...";
+        color: #999;
+      }
+
+      .error-message {
+        background: #fee;
+        color: #c33;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        display: none;
+      }
+
+      .error-message.visible {
+        display: block;
+      }
+
+      .reminder-input {
+        width: 100%;
+        min-height: 150px;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+        margin-bottom: 20px;
+        transition: border-color 0.3s;
+        line-height: 1.6;
+      }
+
+      .reminder-input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .input-label {
+        text-align: left;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎙️ AI Voice Reminder Assistant</h1>
+
+      <!-- Start Screen -->
+      <div class="start-screen" id="startScreen">
+        <p class="subtitle">
+          Enter your reminder details below and click Start Demo
+        </p>
+        <div class="input-label">Reminder Details:</div>
+        <textarea
+          id="reminderInput"
+          class="reminder-input"
+          placeholder="Enter your reminder here..."
+        >
+Meeting with Elon Musk about Tesla v4 designs at 3pm today.
+Meeting with: Elon Musk
+Time: 3pm
+Place: Tesla center, City Square
+Purpose: Tesla model v4 design discussion
+What to bring: Presentation slides, previous design notes, Design book</textarea
+        >
+        <button id="startButton">Start Demo</button>
+      </div>
+
+      <!-- Voice Assistant Screen -->
+      <div class="voice-screen hidden" id="voiceScreen">
+        <div class="voice-indicator" id="voiceIndicator">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
+            />
+            <path
+              d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
+            />
+          </svg>
+        </div>
+
+        <div class="status-text" id="statusText">Connecting...</div>
+
+        <div class="transcript" id="transcript"></div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <button class="stop-button" id="stopButton">Stop Demo</button>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      let audioContext = null;
+      let mediaStream = null;
+      let audioWorkletNode = null;
+      let isRecording = false;
+
+      const startButton = document.getElementById("startButton");
+      const stopButton = document.getElementById("stopButton");
+      const startScreen = document.getElementById("startScreen");
+      const voiceScreen = document.getElementById("voiceScreen");
+      const voiceIndicator = document.getElementById("voiceIndicator");
+      const statusText = document.getElementById("statusText");
+      const transcript = document.getElementById("transcript");
+      const errorMessage = document.getElementById("errorMessage");
+      const reminderInput = document.getElementById("reminderInput");
+
+      startButton.addEventListener("click", startDemo);
+      stopButton.addEventListener("click", stopDemo);
+
+      async function startDemo() {
+        try {
+          // Request microphone permission
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 24000,
+            },
+          });
+
+          // Switch to voice screen
+          startScreen.classList.add("hidden");
+          voiceScreen.classList.remove("hidden");
+
+          // Initialize audio context
+          audioContext = new AudioContext({ sampleRate: 24000 });
+
+          // Get reminder text
+          const reminderText = reminderInput.value.trim();
+          if (!reminderText) {
+            showError("Please enter reminder details before starting.");
+            stopDemo();
+            return;
+          }
+
+          // Connect to WebSocket with reminder text
+          const protocol =
+            window.location.protocol === "https:" ? "wss:" : "ws:";
+          const encodedReminder = encodeURIComponent(reminderText);
+          ws = new WebSocket(
+            `${protocol}//${window.location.host}/ws/voice?reminder=${encodedReminder}`
+          );
+
+          ws.onopen = () => {
+            statusText.textContent = "Connected! Listening...";
+            startRecording();
+          };
+
+          ws.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "audio") {
+              // Play audio from assistant
+              await playAudio(data.audio);
+            } else if (data.type === "transcript") {
+              // Update transcript
+              transcript.textContent += data.text;
+              transcript.scrollTop = transcript.scrollHeight;
+            } else if (data.type === "speech_started") {
+              // User started speaking (interruption)
+              voiceIndicator.classList.add("listening");
+              statusText.textContent = "Listening to you...";
+            } else if (data.type === "speech_stopped") {
+              voiceIndicator.classList.remove("listening");
+              statusText.textContent = "Processing...";
+            } else if (data.type === "response_done") {
+              statusText.textContent = "Ready to listen...";
+            } else if (data.type === "error") {
+              showError("Error: " + JSON.stringify(data.error));
+            }
+          };
+
+          ws.onerror = (error) => {
+            showError("Connection error. Please check your setup.");
+            console.error("WebSocket error:", error);
+          };
+
+          ws.onclose = () => {
+            statusText.textContent = "Disconnected";
+            stopRecording();
+          };
+        } catch (error) {
+          showError("Failed to access microphone. Please grant permission.");
+          console.error("Error:", error);
+          stopDemo();
+        }
+      }
+
+      async function startRecording() {
+        if (!mediaStream || !audioContext || isRecording) return;
+
+        isRecording = true;
+        const source = audioContext.createMediaStreamSource(mediaStream);
+
+        // Create ScriptProcessorNode for audio processing
+        const bufferSize = 4096;
+        const processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+        processor.onaudioprocess = (e) => {
+          if (!isRecording || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+          const inputData = e.inputBuffer.getChannelData(0);
+
+          // Convert Float32Array to Int16Array (PCM16)
+          const pcm16 = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+
+          // Convert to base64
+          const base64Audio = btoa(
+            String.fromCharCode.apply(null, new Uint8Array(pcm16.buffer))
+          );
+
+          // Send to server
+          ws.send(
+            JSON.stringify({
+              type: "audio",
+              audio: base64Audio,
+            })
+          );
+        };
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        audioWorkletNode = processor;
+      }
+
+      function stopRecording() {
+        isRecording = false;
+        if (audioWorkletNode) {
+          audioWorkletNode.disconnect();
+          audioWorkletNode = null;
+        }
+      }
+
+      let audioQueue = [];
+      let isPlaying = false;
+
+      async function playAudio(base64Audio) {
+        audioQueue.push(base64Audio);
+        if (!isPlaying) {
+          playNextAudio();
+        }
+      }
+
+      async function playNextAudio() {
+        if (audioQueue.length === 0) {
+          isPlaying = false;
+          return;
+        }
+
+        isPlaying = true;
+        const base64Audio = audioQueue.shift();
+
+        try {
+          // Decode base64 to ArrayBuffer
+          const binaryString = atob(base64Audio);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          // Convert PCM16 to Float32Array
+          const int16Array = new Int16Array(bytes.buffer);
+          const float32Array = new Float32Array(int16Array.length);
+          for (let i = 0; i < int16Array.length; i++) {
+            float32Array[i] =
+              int16Array[i] / (int16Array[i] < 0 ? 0x8000 : 0x7fff);
+          }
+
+          // Create audio buffer
+          const audioBuffer = audioContext.createBuffer(
+            1,
+            float32Array.length,
+            24000
+          );
+          audioBuffer.getChannelData(0).set(float32Array);
+
+          // Play audio
+          const source = audioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContext.destination);
+          source.onended = () => {
+            playNextAudio();
+          };
+          source.start();
+        } catch (error) {
+          console.error("Error playing audio:", error);
+          playNextAudio();
+        }
+      }
+
+      function stopDemo() {
+        stopRecording();
+
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+
+        if (mediaStream) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          mediaStream = null;
+        }
+
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
+        }
+
+        audioQueue = [];
+        isPlaying = false;
+
+        // Reset UI
+        voiceScreen.classList.add("hidden");
+        startScreen.classList.remove("hidden");
+        voiceIndicator.classList.remove("listening");
+        transcript.textContent = "";
+        statusText.textContent = "Connecting...";
+        errorMessage.classList.remove("visible");
+      }
+
+      function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.classList.add("visible");
+      }
+    </script>
+  </body>
+</html>
