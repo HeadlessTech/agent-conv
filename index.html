@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Voice Reminder Assistant</title>
+    <title>B2B Accelerator - Appointment Booking</title>
     <style>
       * {
         margin: 0;
@@ -12,8 +12,9 @@
       }
 
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Oxygen, Ubuntu, Cantarell, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         min-height: 100vh;
         display: flex;
@@ -74,7 +75,9 @@
         font-size: 18px;
         font-weight: 600;
         cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
       }
 
@@ -178,76 +181,18 @@
       .error-message {
         display: none;
       }
-
-      .reminder-input {
-        width: 100%;
-        min-height: 150px;
-        padding: 15px;
-        border: 2px solid #e0e0e0;
-        border-radius: 10px;
-        font-size: 14px;
-        font-family: inherit;
-        resize: vertical;
-        margin-bottom: 20px;
-        transition: border-color 0.3s;
-        line-height: 1.6;
-      }
-
-      .reminder-input:focus {
-        outline: none;
-        border-color: #667eea;
-      }
-
-      .input-label {
-        text-align: left;
-        color: #333;
-        font-weight: 600;
-        margin-bottom: 10px;
-        font-size: 14px;
-      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>🎙️ AI Voice Reminder Assistant</h1>
+      <h1>🎙️ B2B Accelerator Appointment</h1>
 
       <!-- Start Screen -->
       <div class="start-screen" id="startScreen">
         <p class="subtitle">
-          Enter your reminder details below and click Start Demo
+          Click Start to begin your appointment booking conversation
         </p>
-        <div class="input-label">Reminder Details:</div>
-        <textarea
-          id="reminderInput"
-          class="reminder-input"
-          placeholder="Enter your reminder here..."
-        >
-Meeting: Tesla Model V4 Design Review at 3pm tomorrow
-
-Attendees:
-- Elon Musk (CEO)
-- Franz von Holzhausen (Chief Designer)
-- Lars Moravy (VP of Vehicle Engineering)
-- You (Design Consultant)
-
-Time: 3:00 PM - 4:30 PM tomorrow
-Location: Tesla Design Center, Hawthorne, Building 3, Conference Room A
-
-Agenda & Purpose:
-1. Review aerodynamic improvements for Model V4 (20 min)
-2. Discuss interior design innovations and sustainable materials (25 min)
-3. Present cost optimization strategies without compromising quality (20 min)
-4. Battery integration and range targets discussion (15 min)
-5. Timeline and production readiness assessment (10 min)
-
-What to bring:
-- Presentation slides with design mockups
-- Previous design feedback notes from Q4 review
-- Material samples and supplier proposals
-- Cost analysis spreadsheet
-- Design portfolio book</textarea
-        >
-        <button id="startButton">Start Demo</button>
+        <button id="startButton">Start Conversation</button>
       </div>
 
       <!-- Voice Assistant Screen -->
@@ -288,7 +233,9 @@ What to bring:
       const statusText = document.getElementById("statusText");
       const transcript = document.getElementById("transcript");
       const errorMessage = document.getElementById("errorMessage");
-      const reminderInput = document.getElementById("reminderInput");
+
+      // Get clientId from page
+      const clientId = "{{CLIENT_ID}}";
 
       startButton.addEventListener("click", startDemo);
       stopButton.addEventListener("click", stopDemo);
@@ -311,20 +258,11 @@ What to bring:
           // Initialize audio context
           audioContext = new AudioContext({ sampleRate: 24000 });
 
-          // Get reminder text
-          const reminderText = reminderInput.value.trim();
-          if (!reminderText) {
-            console.error("Please enter reminder details before starting.");
-            stopDemo();
-            return;
-          }
-
-          // Connect to WebSocket with reminder text
+          // Connect to WebSocket with clientId
           const protocol =
             window.location.protocol === "https:" ? "wss:" : "ws:";
-          const encodedReminder = encodeURIComponent(reminderText);
           ws = new WebSocket(
-            `${protocol}//${window.location.host}/ws/voice?reminder=${encodedReminder}`
+            `${protocol}//${window.location.host}/ws/voice/${clientId}`,
           );
 
           ws.onopen = () => {
@@ -400,7 +338,7 @@ What to bring:
 
           // Convert to base64
           const base64Audio = btoa(
-            String.fromCharCode.apply(null, new Uint8Array(pcm16.buffer))
+            String.fromCharCode.apply(null, new Uint8Array(pcm16.buffer)),
           );
 
           // Send to server
@@ -408,7 +346,7 @@ What to bring:
             JSON.stringify({
               type: "audio",
               audio: base64Audio,
-            })
+            }),
           );
         };
 
@@ -466,7 +404,7 @@ What to bring:
           const audioBuffer = audioContext.createBuffer(
             1,
             float32Array.length,
-            24000
+            24000,
           );
           audioBuffer.getChannelData(0).set(float32Array);
 
