@@ -295,31 +295,54 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                         event = json.loads(raw_message)
                         event_type = event.get("type")
 
-                        # Handle function calls
-                        if event_type == "response.function_call_arguments.done":
-                            function_name = event.get("name")
-                            if function_name == "capture_appointment":
-                                arguments = json.loads(event.get("arguments", "{}"))
-                                await handle_appointment_capture(
-                                    client_id,
-                                    arguments.get("tookAppointment", False),
-                                    arguments.get("appointmentData"),
-                                )
-                                # Send function response
-                                await openai_ws.send(
-                                    json.dumps(
-                                        {
-                                            "type": "conversation.item.create",
-                                            "item": {
-                                                "type": "function_call_output",
-                                                "call_id": event.get("call_id"),
-                                                "output": json.dumps(
-                                                    {"status": "success"}
-                                                ),
-                                            },
-                                        }
-                                    )
-                                )
+                        # Handle function calls when response is done
+                        if event_type == "response.done":
+                            response = event.get("response", {})
+                            output_items = response.get("output", [])
+
+                            # Check if there's a function call in the output
+                            for item in output_items:
+                                if item.get("type") == "function_call":
+                                    function_name = item.get("name")
+                                    if function_name == "capture_appointment":
+                                        call_id = item.get("call_id")
+                                        arguments = json.loads(
+                                            item.get("arguments", "{}")
+                                        )
+
+                                        # Execute the function
+                                        await handle_appointment_capture(
+                                            client_id,
+                                            arguments.get("tookAppointment", False),
+                                            arguments.get("appointmentData"),
+                                        )
+
+                                        # Send function output
+                                        await openai_ws.send(
+                                            json.dumps(
+                                                {
+                                                    "type": "conversation.item.create",
+                                                    "item": {
+                                                        "type": "function_call_output",
+                                                        "call_id": call_id,
+                                                        "output": json.dumps(
+                                                            {
+                                                                "status": "success",
+                                                                "message": "Appointment has been recorded",
+                                                            }
+                                                        ),
+                                                    },
+                                                }
+                                            )
+                                        )
+
+                                        # Trigger new response so AI can confirm
+                                        await openai_ws.send(
+                                            json.dumps({"type": "response.create"})
+                                        )
+
+                            # Also send response_done to client
+                            await websocket.send_json({"type": "response_done"})
 
                         # Forward relevant events to client
                         if event_type == "response.audio.delta":
@@ -330,8 +353,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                             await websocket.send_json(
                                 {"type": "transcript", "text": event.get("delta")}
                             )
-                        elif event_type == "response.done":
-                            await websocket.send_json({"type": "response_done"})
                         elif event_type == "input_audio_buffer.speech_started":
                             # User started speaking
                             await websocket.send_json({"type": "speech_started"})
