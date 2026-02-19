@@ -150,8 +150,17 @@ Guidelines:
 Remember: Your primary goal is to schedule the appointment while providing helpful information about B2B Accelerator."""
 
 
+@app.get("/")
+async def get_root():
+    """Serve the main HTML page without clientId"""
+    html_content = open("index.html", encoding="utf-8").read()
+    # Inject empty/null clientId into HTML
+    html_content = html_content.replace("{{CLIENT_ID}}", "null")
+    return HTMLResponse(content=html_content)
+
+
 @app.get("/{client_id}")
-async def get(client_id: int):
+async def get_with_client(client_id: int):
     """Serve the main HTML page with clientId"""
     html_content = open("index.html", encoding="utf-8").read()
     # Inject clientId into HTML
@@ -160,21 +169,25 @@ async def get(client_id: int):
 
 
 @app.websocket("/ws/voice/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: int):
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
     """WebSocket endpoint for real-time voice communication with OpenAI"""
     await websocket.accept()
 
     # Fetch client info from database
     db = next(get_db())
     client_info = ""
-    try:
-        client_record = db.query(Client).filter(Client.id == client_id).first()
-        if client_record and client_record.info:
-            client_info = client_record.info
-    except Exception as e:
-        print(f"Database error fetching client: {e}")
-    finally:
-        db.close()
+
+    # Only fetch from database if client_id is not "null" and is a valid number
+    if client_id != "null":
+        try:
+            client_id_int = int(client_id)
+            client_record = db.query(Client).filter(Client.id == client_id_int).first()
+            if client_record and client_record.info:
+                client_info = client_record.info
+        except (ValueError, Exception) as e:
+            print(f"Error fetching client (client_id={client_id}): {e}")
+
+    db.close()
 
     # Create instructions with the client info
     instructions = create_instructions(client_info)
@@ -311,8 +324,12 @@ async def websocket_endpoint(websocket: WebSocket, client_id: int):
                                         )
 
                                         # Execute the function
+                                        # Convert client_id to int if it's not "null"
+                                        client_id_for_api = (
+                                            0 if client_id == "null" else int(client_id)
+                                        )
                                         await handle_appointment_capture(
-                                            client_id,
+                                            client_id_for_api,
                                             arguments.get("tookAppointment", False),
                                             arguments.get("appointmentData"),
                                         )
