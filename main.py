@@ -41,7 +41,7 @@ class CreateClientResponse(BaseModel):
 
 
 async def handle_appointment_capture(
-    client_id: int, took_appointment: bool, appointment_data: str = None
+    client_id: int, took_appointment: bool, appointment_date: str = None
 ):
     """Handle appointment capture and POST to external API"""
     external_api_url = os.getenv("EXTERNAL_API_URL")
@@ -50,10 +50,11 @@ async def handle_appointment_capture(
         print("Warning: EXTERNAL_API_URL not configured")
         return
 
+    # Ensure tookAppointment is boolean and appointmentDate is ISO string or None
     payload = {
         "clientId": client_id,
-        "tookAppointment": took_appointment,
-        "appointmentData": appointment_data,
+        "tookAppointment": bool(took_appointment),
+        "appointmentDate": appointment_date if appointment_date else None,
     }
 
     # Log appointment details
@@ -62,7 +63,7 @@ async def handle_appointment_capture(
         print(f"📅 APPOINTMENT CAPTURED")
         print(f"{'='*60}")
         print(f"Client ID: {client_id}")
-        print(f"Appointment Date/Time: {appointment_data}")
+        print(f"Appointment Date/Time: {appointment_date}")
         print(f"Status: Appointment Scheduled")
     else:
         print(f"\n{'='*60}")
@@ -233,9 +234,9 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                                                 "type": "boolean",
                                                 "description": "Whether the user agreed to take an appointment",
                                             },
-                                            "appointmentData": {
+                                            "appointmentDate": {
                                                 "type": "string",
-                                                "description": "The appointment date and time in ISO format (e.g., 2026-02-20T14:00:00). Only required if tookAppointment is true.",
+                                                "description": "The appointment date and time in ISO 8601 format (e.g., 2025-02-22T14:30:00.000Z). Only required if tookAppointment is true.",
                                             },
                                         },
                                         "required": ["tookAppointment"],
@@ -330,8 +331,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                                         )
                                         await handle_appointment_capture(
                                             client_id_for_api,
-                                            arguments.get("tookAppointment", False),
-                                            arguments.get("appointmentData"),
+                                            bool(
+                                                arguments.get("tookAppointment", False)
+                                            ),
+                                            arguments.get("appointmentDate"),
                                         )
 
                                         # Send function output
