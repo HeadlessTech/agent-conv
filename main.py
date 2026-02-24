@@ -99,6 +99,19 @@ def create_client(request: CreateClientRequest, db: Session = Depends(get_db)):
     return CreateClientResponse(clientId=new_client.id, agentLink=agent_link)
 
 
+@app.get("/clients/{clientId}")
+def get_client(clientId: int, db: Session = Depends(get_db)):
+    """Get client information by clientId"""
+    client = db.query(Client).filter(Client.id == clientId).first()
+
+    if not client:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    return {"clientId": client.id, "info": client.info}
+
+
 def create_instructions(client_info: str) -> str:
     """Create instructions for the AI assistant with client information"""
     client_context = (
