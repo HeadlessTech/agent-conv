@@ -1,31 +1,27 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from models import Base
+from pymongo import MongoClient
+from pymongo.database import Database
 import os
 from typing import Generator
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./voice_assistant.db")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "voice_assistant")
 
-# Create engine
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
-)
-
-# Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create MongoDB client
+client = MongoClient(MONGODB_URI)
+database = client[DATABASE_NAME]
 
 
 def init_db():
-    """Initialize database - create all tables"""
-    Base.metadata.create_all(bind=engine)
+    """Initialize database - create indexes if needed"""
+    # Create index on client id
+    database.clients.create_index("clientId", unique=True)
+    print(f"Connected to MongoDB: {DATABASE_NAME}")
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Dependency to get database session"""
-    db = SessionLocal()
+def get_db() -> Generator[Database, None, None]:
+    """Dependency to get database"""
     try:
-        yield db
+        yield database
     finally:
-        db.close()
+        pass

@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -8,9 +8,8 @@ import json
 import httpx
 from openai import AsyncOpenAI
 import websockets
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 from database import init_db, get_db
-from models import Client
 
 # Load environment variables
 load_dotenv()
@@ -85,31 +84,32 @@ async def handle_appointment_capture(
 
 
 @app.post("/clients", response_model=CreateClientResponse)
-def create_client(request: CreateClientRequest, db: Session = Depends(get_db)):
+def create_client(request: CreateClientRequest, db: Database = Depends(get_db)):
     """Create a new client with info"""
-    new_client = Client(info=request.info)
-    db.add(new_client)
-    db.commit()
-    db.refresh(new_client)
+    # Get next client ID
+    last_client = db.clients.find_one(sort=[("clientId", -1)])
+    next_id = (last_client["clientId"] + 1) if last_client else 1
+
+    # Create new client document
+    new_client = {"clientId": next_id, "info": request.info}
+    db.clients.insert_one(new_client)
 
     # Generate agent link
     server_url = os.getenv("SERVER_URL", "http://localhost:8000")
-    agent_link = f"{server_url}/{new_client.id}"
+    agent_link = f"{server_url}/{next_id}"
 
-    return CreateClientResponse(clientId=new_client.id, agentLink=agent_link)
+    return CreateClientResponse(clientId=next_id, agentLink=agent_link)
 
 
 @app.get("/clients/{clientId}")
-def get_client(clientId: int, db: Session = Depends(get_db)):
+def get_client(clientId: int, db: Database = Depends(get_db)):
     """Get client information by clientId"""
-    client = db.query(Client).filter(Client.id == clientId).first()
+    client = db.clients.find_one({"clientId": clientId})
 
     if not client:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="Client not found")
 
-    return {"clientId": client.id, "info": client.info}
+    return {"clientId": client["clientId"], "info": client.get("info")}
 
 
 def create_instructions(client_info: str) -> str:
@@ -195,13 +195,11 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     if client_id != "null":
         try:
             client_id_int = int(client_id)
-            client_record = db.query(Client).filter(Client.id == client_id_int).first()
-            if client_record and client_record.info:
-                client_info = client_record.info
+            client_record = db.clients.find_one({"clientId": client_id_int})
+            if client_record and client_record.get("info"):
+                client_info = client_record["info"]
         except (ValueError, Exception) as e:
             print(f"Error fetching client (client_id={client_id}): {e}")
-
-    db.close()
 
     # Create instructions with the client info
     instructions = create_instructions(client_info)
